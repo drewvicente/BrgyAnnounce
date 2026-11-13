@@ -1,6 +1,7 @@
 import { formatDate } from '@angular/common';
 import { Injectable, computed, signal } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
 import { APP_CONFIG } from '../core/app-config';
@@ -8,6 +9,7 @@ import { loadData, saveData } from '../core/local-store';
 import type { Notice, Reminder } from '../models/notice.model';
 
 const KEY = 'barangay.reminders';
+const CHANNEL_ID = 'reminders_v2'; // channel with sound + vibration
 type AddResult = 'ok' | 'past' | 'no-date' | 'denied';
 
 // Reminders are saved on the resident's own phone, so residents need no account.
@@ -28,14 +30,18 @@ export class ReminderService {
   async toggle(notice: Notice): Promise<string> {
     if (this.has(notice.id)) {
       await this.cancel(notice.id);
+      await this.buzz('cancel');
       return 'Reminder cancelled';
     }
     const result = await this.add(notice);
+    if (result === 'ok') {
+      await this.buzz('set');
+      return 'Reminder set for the event time';
+    }
+    await this.buzz('error');
     switch (result) {
-      case 'ok':
-        return 'Reminder set for 1 day before';
       case 'past':
-        return 'Too late to set a reminder for this event';
+        return 'This event has already started';
       case 'no-date':
         return 'This notice has no event date';
       default:
@@ -64,7 +70,9 @@ export class ReminderService {
     if (!notice.eventDate) {
       return 'no-date';
     }
-    const remindAt = this.computeRemindAt(notice.eventDate);
+
+    // "On time" = the event's own date and time.
+    const remindAt = new Date(notice.eventDate);
     if (remindAt.getTime() <= Date.now()) {
       return 'past';
     }
@@ -79,18 +87,27 @@ export class ReminderService {
         if (perm.display !== 'granted') {
           return 'denied';
         }
+        await this.ensureChannel();
         const time = formatDate(notice.eventDate, 'h:mm a', 'en-US');
         const place = notice.location ? ` at ${notice.location}` : '';
+
+        // Schedule the notification for the event's own date and time.
         await LocalNotifications.schedule({
           notifications: [
             {
               id: notificationId,
+              channelId: CHANNEL_ID,
               title: APP_CONFIG.shortName,
-              body: `${notice.title} is tomorrow, ${time}${place}`,
+              body: `${notice.title} is starting now, ${time}${place}`,
               schedule: { at: remindAt, allowWhileIdle: true },
             },
           ],
         });
+
+
+
+
+        
       } catch {
         return 'denied';
       }
@@ -108,10 +125,39 @@ export class ReminderService {
     return 'ok';
   }
 
-  private computeRemindAt(eventDate: string): Date {
-    const d = new Date(eventDate);
-    d.setMinutes(d.getMinutes() - APP_CONFIG.reminderMinutesBefore);
-    return d;
+  // Short vibration on the phone when the resident taps Remind. Does nothing in the browser.
+  private async buzz(kind: 'set' | 'cancel' | 'error'): Promise<void> {
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
+    try {
+      if (kind === 'set') {
+        await Haptics.notification({ type: NotificationType.Success });
+      } else if (kind === 'cancel') {
+        await Haptics.impact({ style: ImpactStyle.Light });
+      } else {
+        await Haptics.notification({ type: NotificationType.Error });
+      }
+    } catch {
+      // phone has no vibration motor
+    }
+  }
+
+  // Android keeps a channel's sound/vibration settings once created,
+  // so vibration has to be set when the channel is first made.
+  private async ensureChannel(): Promise<void> {
+    try {
+      await LocalNotifications.createChannel({
+        id: CHANNEL_ID,
+        name: 'Event reminders',
+        description: 'Reminders for barangay events',
+        importance: 5, // high: sound + vibration + pop-up
+        visibility: 1,
+        vibration: true,
+      });
+    } catch {
+      // channel already exists
+    }
   }
 
   // forget reminders whose event already happened

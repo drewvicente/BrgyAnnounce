@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+
 import { APP_CONFIG } from '../core/app-config';
 import { loadData, saveData } from '../core/local-store';
 

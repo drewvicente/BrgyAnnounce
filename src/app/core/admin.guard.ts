@@ -1,5 +1,7 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router, UrlTree } from '@angular/router';
+import { Router } from '@angular/router';
+import type { UrlTree, CanActivateFn } from '@angular/router';
+
 import { AuthService } from '../services/auth.service';
 
 // Blocks admin-only pages for residents and sends them to the login screen.

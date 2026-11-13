@@ -1,6 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
+
 import { loadData, saveData } from '../core/local-store';
-import { Notice } from '../models/notice.model';
+import type  { Notice } from '../models/notice.model';
 
 const KEY = 'barangay.notices';
 
@@ -20,6 +21,7 @@ export class NoticeService {
     return this._notices().find(n => n.id === id);
   }
 
+  // Add a new notice. Returns the new notice with its generated id and postedAt timestamp.
   add(data: Omit<Notice, 'id' | 'postedAt'>): Notice {
     const notice: Notice = {
       ...data,

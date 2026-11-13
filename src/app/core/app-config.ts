@@ -13,7 +13,7 @@ export const APP_CONFIG = {
   defaultTags: ['Notice', 'Event', 'Alert', 'Program'],
 
   // Reminders fire 1 day before the event at this hour (24h clock).
-  reminderMinutesBefore: 60,
+  // reminderMinutesBefore: 60,
 
   // DEMO ONLY. Anyone who opens the app files can read these.
   // Replace with a real login once you add a backend.

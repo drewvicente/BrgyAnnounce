@@ -67,7 +67,7 @@
       <div class="footer-bar">
         <button class="action-btn" [class.outline]="reminders.has(n.id)" (click)="remind()">
           <ion-icon name="notifications-outline"></ion-icon>
-          {{ reminders.has(n.id) ? 'Reminder set · tap to cancel' : 'Remind me 1 hour before' }}
+          {{ reminders.has(n.id) ? 'Reminder set · tap to cancel' : 'Remind me' }}
         </button>
       </div>
     </ion-footer>
